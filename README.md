@@ -1,2 +1,3 @@
-# FORTRAN-Ocean-Ray-Tracing
-Physical Oceanography
+# Ocean Ray Tracing using FORTRAN
+@Scripps Institution of Oceanography
+@2015 
