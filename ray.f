@@ -83,4 +83,9 @@ c temporarily store the depth and its derivatives:
     hytem=hy(xray(i),yray(i))
 c
 c compute the total wavenumber, etc:
+    ktotal=dsqrt(kxray(i)**2+kyray(i)**2)
+    arg=ktotal*htem
+    omega=dsqrt(grav)*ktotal*dtanh(arg))
+    groupspeed=.50/omega*grav*
+    *  (dtanh(arg)+arg/dos
     
