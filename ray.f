@@ -59,3 +59,28 @@ c maximum group velocity:
     cgmax=dsqrt(grav*h(x0,0.d0))
 c time step:
     dt=10.d0/cgmax
+c
+c loop through the rays:
+    do 2000 j=1,nrays
+c for each ray set the starting values of location and wavenumber 
+    xray(1)=x0
+    yray(1)=dble(j-1)/dble(nrays)*dist
+    kxray(1)=kx0
+    kyray(1)=ky0
+c
+c follow each ray toward shore:
+    do 1000 i=1,1000
+c
+c check to see if the ray is still within bounds:
+    if(xray(i).lt.x0)go to 1001
+    if(xray(i).ge.0.d0)go to 1001
+    if(yray(i).lt.0.d0)go to 1001
+    if(yray(i).gt.dist)go to 1001
+c
+c temporarily store the depth and its derivatives:
+    htem=h(xray(i),yray(i))
+    hxtem=hx(xray(i),yray(i))
+    hytem=hy(xray(i),yray(i))
+c
+c compute the total wavenumber, etc:
+    
