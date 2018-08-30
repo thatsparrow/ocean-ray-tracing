@@ -1,6 +1,7 @@
     program rays  
 c
-c finds the ray paths beginning at x=x0 and various y
+c author: @thatsparrow
+c this program finds the ray paths beginning at x=x0 and various y
 c in an ocean on x<0 with depth h(x,y)
 c the x-derivative of h is hx(x,y)
 c the y-derivative of h is hy(x,y)
@@ -87,5 +88,58 @@ c compute the total wavenumber, etc:
     arg=ktotal*htem
     omega=dsqrt(grav)*ktotal*dtanh(arg))
     groupspeed=.50/omega*grav*
-    *  (dtanh(arg)+arg/dos
-    
+    *  (dtanh(arg)+arg/dcosh(arg)**2)
+     dwdh=.5d0/omega*grav*
+     *  ktotal**2/dcosh(arg)**2
+c
+c advance ray one time stop:
+    if(i.eq.1)then
+c the first step is a forward step:
+    xray(2)=xray(1)+dt*dxdt
+    yray(2)=yray(1)+dt*dydt
+    kxray(2)=kxray(1)+dt*dkxdt
+    kyray(2)=kyray(1)+dt*dkydt
+    else
+c subsequent steps are leapfrog steps:
+    xray(i+1)=xray(i-1)+2.d0*dt*dxdt
+    yray(i+1)=yray(i-1)+2.d0*dt*dydt
+    kxray(i+1)=kxray(i-1)+2.d0*dt*dkdxdt
+    kyray(i+1)=kyray(i-1)+2.d0*dt*dkdydt
+    endif
+c
+c draw the current ray segment:
+    x1=xor+(xray(i)-x0)/dabs(x0)*width
+    y1=yor+(yray(i)/dist)*height
+    x2=xor+(xray(i+1)-x0)/dabs(x0)*width
+    y2=yor+(yray(i+1)/dist)*height
+    call line(8,x1,y1,x2,y2,4)
+1000 continue
+1001 continue
+c continue with the next ray 
+c
+2000 continue
+c exit after the last ray
+    call closegr(8)
+    stop
+    end
+c
+    function h(x,y)
+    implicit double precision(a-h,o-z)
+    common/depth/alpha/eps/beta
+    h=1.d0-alpha*x*(1.d0+eps*dcos(beta*y))
+    return
+    end
+c
+    function hx(x,y)
+    implicit double precision(a-h,o-z)
+    common/depth/alpha/eps/beta
+    h=1.d0-alpha*x*(1.d0+eps*dcos(beta*y))
+    return
+    end
+c
+    function hy(x,y)
+    implicit double precision(a-h,o-z)
+    common/depth/alpha/eps/beta
+    hy=alpha**eps*beta*x*dsin(beta*y)
+    return
+    end
