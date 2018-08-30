@@ -1,4 +1,4 @@
-This program finds the ray paths beginning at x=x0 and various y in an ocean on x<0 with depth h(x,y)
+This FORTRAN program finds the ray paths beginning at x=x0 and various y in an ocean on x<0 with depth h(x,y)
 
 (1) x-derivative of h is hx(x,y)
 (2) y-derivative of h is hy(x,y),
