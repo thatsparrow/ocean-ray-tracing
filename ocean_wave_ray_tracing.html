@@ -1,0 +1,204 @@
+
+<div style="padding:0.5rem 0;">
+<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:1rem;">
+  <div>
+    <div style="font-size:12px; color:var(--color-text-secondary); margin-bottom:4px;">rays: <span id="v-nr" style="color:var(--color-text-primary);font-weight:500;">20</span></div>
+    <input type="range" id="c-nr" min="4" max="40" step="2" value="20" style="width:100%">
+  </div>
+  <div>
+    <div style="font-size:12px; color:var(--color-text-secondary); margin-bottom:4px;">ripple ε: <span id="v-ep" style="color:var(--color-text-primary);font-weight:500;">0.30</span></div>
+    <input type="range" id="c-ep" min="0" max="0.9" step="0.05" value="0.3" style="width:100%">
+  </div>
+  <div>
+    <div style="font-size:12px; color:var(--color-text-secondary); margin-bottom:4px;">period: <span id="v-pd" style="color:var(--color-text-primary);font-weight:500;">12</span>s</div>
+    <input type="range" id="c-pd" min="6" max="20" step="1" value="12" style="width:100%">
+  </div>
+</div>
+<canvas id="rc" style="width:100%;display:block;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary);"></canvas>
+<div style="display:flex;gap:20px;margin-top:8px;font-size:11px;color:var(--color-text-secondary);align-items:center;flex-wrap:wrap;">
+  <div style="display:flex;align-items:center;gap:5px;"><canvas id="lc" width="48" height="10" style="border-radius:2px;"></canvas><span>deep → shallow</span></div>
+  <div style="display:flex;align-items:center;gap:5px;"><div style="width:18px;height:2px;background:#ff6e40;"></div><span>wave rays</span></div>
+  <div style="display:flex;align-items:center;gap:5px;"><div style="width:18px;height:2px;background:#ffe082;"></div><span>shoreline</span></div>
+  <div style="display:flex;align-items:center;gap:5px;"><div style="width:18px;height:1px;border-top:1px dashed rgba(255,255,255,0.4);"></div><span>depth contours</span></div>
+</div>
+</div>
+<script>
+(function(){
+const G=9.8,X0=-1000,DIST=2000,AL=1/20,BE=2*Math.PI/1000;
+const ML=44,MR=20,MT=8,MB=34;
+
+function Hf(x,y,e){return 1-AL*x*(1+e*Math.cos(BE*y));}
+function HXf(x,y,e){return -AL*(1+e*Math.cos(BE*y));}
+function HYf(x,y,e){return AL*e*BE*x*Math.sin(BE*y);}
+function sc2(a){if(Math.abs(a)>20)return 0;const c=Math.cosh(a);return 1/(c*c);}
+
+function traceRays(nr,eps,T){
+  const om=2*Math.PI/T,k0=om*om/G;
+  const kx0=k0/Math.SQRT2,ky0=-k0/Math.SQRT2;
+  const dt=10/Math.sqrt(G*Hf(X0,0,eps));
+  const out=[];
+  for(let j=0;j<nr;j++){
+    const xs=[X0],ys=[j/Math.max(nr-1,1)*DIST],kxs=[kx0],kys=[ky0];
+    for(let i=0;i<1400;i++){
+      const xi=xs[i],yi=ys[i],kxi=kxs[i],kyi=kys[i];
+      if(xi<=X0||xi>=0||yi<-50||yi>DIST+50)break;
+      const hv=Hf(xi,yi,eps);
+      const k=Math.sqrt(kxi*kxi+kyi*kyi);
+      const ag=k*hv,th=Math.tanh(ag),ss=sc2(ag);
+      const omv=Math.sqrt(G*k*th);
+      if(!isFinite(omv)||omv<1e-9)break;
+      const cg=G*(th+ag*ss)/(2*omv);
+      const dw=G*k*k*ss/(2*omv);
+      const dxdt=cg*kxi/k,dydt=cg*kyi/k;
+      const dkx=-dw*HXf(xi,yi,eps),dky=-dw*HYf(xi,yi,eps);
+      let xn,yn,kxn,kyn;
+      if(i===0){xn=xi+dt*dxdt;yn=yi+dt*dydt;kxn=kxi+dt*dkx;kyn=kyi+dt*dky;}
+      else{xn=xs[i-1]+2*dt*dxdt;yn=ys[i-1]+2*dt*dydt;kxn=kxs[i-1]+2*dt*dkx;kyn=kys[i-1]+2*dt*dky;}
+      if(!isFinite(xn)||!isFinite(yn))break;
+      xs.push(xn);ys.push(yn);kxs.push(kxn);kys.push(kyn);
+    }
+    out.push({xs,ys});
+  }
+  return out;
+}
+
+function hCol(t){
+  return[Math.round(175*(1-t)+8*t),Math.round(215*(1-t)+22*t),Math.round(240*(1-t)+90*t)];
+}
+
+const cv=document.getElementById('rc');
+const ct=cv.getContext('2d');
+
+function toC(x,y,pw,ph){
+  return{cx:ML+(x-X0)/(-X0)*pw, cy:MT+(1-y/DIST)*ph};
+}
+
+function draw(){
+  const eps=+document.getElementById('c-ep').value;
+  const T=+document.getElementById('c-pd').value;
+  const nr=+document.getElementById('c-nr').value;
+  const dark=matchMedia('(prefers-color-scheme:dark)').matches;
+  const ax=dark?'rgba(200,200,200,0.65)':'rgba(70,70,70,0.8)';
+
+  const dpr=window.devicePixelRatio||1;
+  const cssW=Math.max(cv.offsetWidth||560,200);
+  const pw=cssW-ML-MR;
+  const ph=Math.round(pw*1.25);
+  const cssH=ph+MT+MB;
+  cv.width=Math.round(cssW*dpr);
+  cv.height=Math.round(cssH*dpr);
+  cv.style.height=cssH+'px';
+  ct.scale(dpr,dpr);
+  ct.clearRect(0,0,cssW,cssH);
+
+  // Bathymetry raster (half resolution, scaled up)
+  const sx=Math.max(2,Math.round(pw/2)),sy=Math.max(2,Math.round(ph/2));
+  let hmin=Infinity,hmax=-Infinity;
+  for(let iy=0;iy<sy;iy++)for(let ix=0;ix<sx;ix++){
+    const v=Hf(X0+ix/(sx-1)*(-X0),DIST*(1-iy/Math.max(sy-1,1)),eps);
+    if(v<hmin)hmin=v;if(v>hmax)hmax=v;
+  }
+  const imgd=ct.createImageData(sx,sy);
+  for(let iy=0;iy<sy;iy++)for(let ix=0;ix<sx;ix++){
+    const v=Hf(X0+ix/(sx-1)*(-X0),DIST*(1-iy/Math.max(sy-1,1)),eps);
+    const t=(v-hmin)/(hmax-hmin);
+    const[r,g,b]=hCol(t);
+    const p=(iy*sx+ix)*4;
+    imgd.data[p]=r;imgd.data[p+1]=g;imgd.data[p+2]=b;imgd.data[p+3]=255;
+  }
+  const tmp=document.createElement('canvas');
+  tmp.width=sx;tmp.height=sy;
+  tmp.getContext('2d').putImageData(imgd,0,0);
+  ct.drawImage(tmp,ML,MT,pw,ph);
+
+  // Depth contours
+  ct.strokeStyle='rgba(255,255,255,0.22)';ct.lineWidth=0.5;
+  ct.fillStyle='rgba(255,255,255,0.6)';ct.font='9px sans-serif';
+  for(const cd of[5,10,20,30,40,50]){
+    ct.beginPath();let first=true;
+    for(let iy=0;iy<=ph*3;iy++){
+      const yv=DIST*(1-iy/(ph*3));
+      const den=AL*(1+eps*Math.cos(BE*yv));
+      if(Math.abs(den)<1e-9)continue;
+      const xv=(1-cd)/den;
+      if(xv<X0||xv>0)continue;
+      const{cx,cy}=toC(xv,yv,pw,ph);
+      if(first){ct.moveTo(cx,cy);first=false;}else ct.lineTo(cx,cy);
+    }
+    ct.stroke();
+    // label at y midpoint
+    const ym=DIST*0.5,den2=AL*(1+eps*Math.cos(BE*ym));
+    if(Math.abs(den2)>1e-9){
+      const xm=(1-cd)/den2;
+      if(xm>X0&&xm<-20){
+        const{cx,cy}=toC(xm,ym,pw,ph);
+        ct.textAlign='center';ct.fillText(cd+'m',cx,cy-3);
+      }
+    }
+  }
+
+  // Wave rays
+  const rays=traceRays(nr,eps,T);
+  ct.strokeStyle='#ff6e40';ct.lineWidth=1.5;ct.lineJoin='round';
+  for(const ray of rays){
+    if(ray.xs.length<2)continue;
+    ct.beginPath();
+    const{cx:cx0,cy:cy0}=toC(ray.xs[0],ray.ys[0],pw,ph);
+    ct.moveTo(cx0,cy0);
+    for(let i=1;i<ray.xs.length;i++){
+      const{cx,cy}=toC(ray.xs[i],ray.ys[i],pw,ph);
+      ct.lineTo(cx,cy);
+    }
+    ct.stroke();
+  }
+
+  // Shoreline
+  ct.strokeStyle='#ffe082';ct.lineWidth=2;
+  ct.beginPath();ct.moveTo(ML+pw,MT);ct.lineTo(ML+pw,MT+ph);ct.stroke();
+  ct.fillStyle='#ffe082';ct.font='10px sans-serif';ct.textAlign='center';
+  ct.fillText('shore',ML+pw,MT+ph+12);
+
+  // Border
+  ct.strokeStyle=dark?'rgba(255,255,255,0.12)':'rgba(0,0,0,0.1)';
+  ct.lineWidth=0.5;ct.strokeRect(ML,MT,pw,ph);
+
+  // X axis
+  ct.fillStyle=ax;ct.font='11px sans-serif';ct.textAlign='center';
+  for(const xw of[-1000,-750,-500,-250,0]){
+    const{cx}=toC(xw,0,pw,ph);
+    ct.beginPath();ct.moveTo(cx,MT+ph);ct.lineTo(cx,MT+ph+4);
+    ct.strokeStyle=ax;ct.lineWidth=0.5;ct.stroke();
+    ct.fillText(Math.abs(xw),cx,MT+ph+15);
+  }
+  ct.fillStyle=ax;ct.fillText('offshore distance (m)',ML+pw/2,MT+ph+30);
+
+  // Y axis
+  ct.textAlign='right';
+  for(const yw of[0,500,1000,1500,2000]){
+    const{cy}=toC(0,yw,pw,ph);
+    ct.beginPath();ct.moveTo(ML-4,cy);ct.lineTo(ML,cy);
+    ct.strokeStyle=ax;ct.lineWidth=0.5;ct.stroke();
+    ct.fillStyle=ax;ct.fillText(yw,ML-6,cy+4);
+  }
+  ct.save();ct.translate(11,MT+ph/2);ct.rotate(-Math.PI/2);
+  ct.textAlign='center';ct.fillStyle=ax;ct.font='11px sans-serif';
+  ct.fillText('along-shore (m)',0,0);ct.restore();
+
+  // Legend
+  const lc=document.getElementById('lc');
+  const lx=lc.getContext('2d');
+  for(let i=0;i<48;i++){const[r,g,b]=hCol(i/47);lx.fillStyle=`rgb(${r},${g},${b})`;lx.fillRect(i,0,1,10);}
+}
+
+['c-ep','c-pd','c-nr'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',function(){
+    const m={'c-ep':'v-ep','c-pd':'v-pd','c-nr':'v-nr'};
+    const p={'c-ep':2,'c-pd':0,'c-nr':0};
+    document.getElementById(m[id]).textContent=parseFloat(this.value).toFixed(p[id]);
+    draw();
+  });
+});
+setTimeout(draw,120);
+window.addEventListener('resize',()=>setTimeout(draw,60));
+})();
+</script>
