@@ -1,6 +1,7 @@
 c ============================================================
 c  RAYS.F  –  Ocean wave ray-tracing program
-c  author: @thatsparrow (bugs fixed)
+c  author: jann benjamin (la jolla, 2016)
+c  last edited: 4/1/2026
 c
 c  What this program does:
 c    Traces the paths of ocean wave "rays" as they travel
